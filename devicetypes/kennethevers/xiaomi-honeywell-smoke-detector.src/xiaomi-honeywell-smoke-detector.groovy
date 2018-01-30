@@ -18,71 +18,113 @@
  */
  
 metadata {
-	definition (name: "Xiaomi Honeywell Smoke Detector", namespace: "KennethEvers", author: "Kenneth Evers") {
+	definition (name: "Xiaomi Smoke/Fire Detector", namespace: "XiaomiSmoke", author: "enchoss") {
 		
         capability "Configuration"
         capability "Smoke Detector"
         capability "Sensor"
         capability "Battery"  // NOT WORKING #### Fixed??
         //capability "Temperature Measurement" //attributes: temperature NOT WORKING 
-        capability "Refresh"
+        //capability "Refresh"
         
-        command "enrollResponse"
         attribute "lastTested", "String"
- 
+        attribute "lastCheckin", "String"
+  		attribute "lastSmoke", "String"
+        attribute "lastSmokeDate", "Date" 
+        attribute "lastCheckinDate", "Date"
+        attribute "batteryRuntime", "String" 
+        
+        command "resetBatteryRuntime"
+        command "enrollResponse"
+        command "reset"
+        command "makeSmoke"
+        //command "Refresh"
  
 		fingerprint profileID: "0104", deviceID: "0402", inClusters: "0000,0003,0012,0500", outClusters: "0019"
         
 }
  
 	simulator {
- 
+ 		status "clear": "on/off: 0"
+        status "detected": "on/off: 1"
 	}
 
-	preferences {}
+	preferences {
+           input name: "dateformat", type: "enum", title: "Set Date Format\n US (MDY) - UK (DMY) - Other (YMD)", description: "Date Format", required: false, options:["US","UK","Other"]
+		   input description: "Only change the settings below if you know what you're doing", displayDuringSetup: false, type: "paragraph", element: "paragraph", title: "ADVANCED SETTINGS"
+	       input name: "voltsmax", title: "Max Volts\nA battery is at 100% at __ volts\nRange 2.8 to 3.4", type: "decimal", range: "2.8..3.4", defaultValue: 3, required: false
+	       input name: "voltsmin", title: "Min Volts\nA battery is at 0% (needs replacing) at __ volts\nRange 2.0 to 2.7", type: "decimal", range: "2..2.7", defaultValue: 2.5, required: false
+}
  
-	tiles {
+	tiles(scale: 2) {
 		multiAttributeTile(name:"smoke", type: "generic", width: 6, height: 4) {
 			tileAttribute ("device.smoke", key: "PRIMARY_CONTROL") {
-           		attributeState("clear", label:'CLEAR', icon:"st.alarm.smoke.clear", backgroundColor:"#ffffff")
+           		attributeState("clear", label:'CLEAR', icon:"st.alarm.smoke.clear", backgroundColor:"#00a0dc")
             	attributeState("detected", label:'SMOKE', icon:"st.alarm.smoke.smoke", backgroundColor:"#e86d13")   
  			}
+             tileAttribute("device.lastSmoke", key: "SECONDARY_CONTROL") {
+                attributeState("default", label:'Last smoke detected: ${currentValue}')
+            }
 		}
         
-        valueTile("battery", "device.battery", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-            state "battery", label:'${currentValue}% battery', unit:"%"
-        } // NOT WORKING
-        
-        standardTile("icon", "", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-            state "default", label:'Last Tested', icon:"st.alarm.smoke.test"
+          valueTile("battery", "device.battery", decoration:"flat", inactiveLabel: false, width: 2, height: 2) {
+            state "default", label:'${currentValue}%', unit:"%",
+            backgroundColors:[
+                [value: 10, color: "#bc2323"],
+                [value: 26, color: "#f1d801"],
+                [value: 51, color: "#44b621"]
+            ]
         }
-        valueTile("lastTested", "device.lastTested", inactiveLabel: false, decoration: "flat", width: 4, height: 2) {
-            state "default", label:'${currentValue}'//, backgroundColor:"#33cc33"
+        
+        //standardTile("icon", "", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+            //state "default", label:'Last Tested', icon:"st.alarm.smoke.test"
+       // }
+       // valueTile("lastTested", "device.lastTested", inactiveLabel: false, decoration: "flat", width: 4, height: 2) {
+           // state "default", label:'${currentValue}'//, backgroundColor:"#33cc33"
             //state "notTested", label:'Not Tested since: ${currentValue}', backgroundColor:"#ff3300"
-        } // NOT WORKING
-            
-        standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "default", action:"configuration.configure", icon:"st.secondary.configure"
-		} 		
-        standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "default", action:"refresh.refresh", icon:"st.secondary.refresh"
-		}        
+        //} // NOT WORKING
+         valueTile("lastcheckin", "device.lastCheckin", decoration: "flat", inactiveLabel: false, width: 4, height: 1) {
+            state "default", label:'Last Checkin:\n${currentValue}'
+        }
+         standardTile("reset", "device.reset", inactiveLabel: false, decoration:"flat", width: 2, height: 2) {
+            state "default", action:"reset", label:'Reset Smoke', icon:"st.alarm.smoke.clear"
+        }
+        
+         standardTile("makeSmoke", "device.makeSmoke", inactiveLabel: false, decoration:"flat", width: 2, height: 2) {
+            state "default", action:"makeSmoke", label:'Make Smoke', icon:"st.alarm.smoke.smoke"
+        }
+        valueTile("batteryRuntime", "device.batteryRuntime", inactiveLabel: false, decoration: "flat", width: 4, height: 1) {
+           state "batteryRuntime", label:'Battery Changed (tap to reset):\n ${currentValue}', unit:"", action:"resetBatteryRuntime"
+         }  
+        //standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+		//	state "default", action:"configuration.configure", icon:"st.secondary.configure"
+		//} 		
+       // standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+			//state "default", action:"refresh.refresh", icon:"st.secondary.refresh"
+		//}   
+        
 		main (["smoke"])
-		details(["smoke", "battery", "refresh","configure", "icon", "lastTested"])
+		details(["smoke", "battery","makeSmoke", "reset", "lastcheckin", "batteryRuntime"])//, "icon", "lastTested"
 	}
 }
  
-//def updated() {
- //   log.debug "Updated with settings: ${settings}"
- //   setConfigured("false") //wait until the next time device wakeup to send configure command
-//}
-
 
 def parse(String description) {
 	log.debug "description: $description"
     
+    def now = formatDate()
+    def nowDate = new Date(now).getTime()
+    sendEvent(name: "lastCheckin", value: now)
+    sendEvent(name: "lastCheckinDate", value: nowDate, displayed: false) 
+    
 	Map map = [:]
-	if (description?.startsWith('catchall:')) {
+      if (description?.startsWith('on/off: ')) 
+    {
+        map = parseCustomMessage(description) 
+        sendEvent(name: "lastSmoke", value: now, displayed: false)
+        sendEvent(name: "lastSmokeDate", value: nowDate, displayed: false) 
+    }
+	else if (description?.startsWith('catchall:')) {
 		map = parseCatchAllMessage(description)
 	}
 	else if (description?.startsWith('read attr -')) {
@@ -102,36 +144,50 @@ def parse(String description) {
     }
     return result
 }
-
+            
 private Map parseCatchAllMessage(String description) {
-    def linkText = getLinkText(device)
-    
-	Map resultMap = [:]
-	def cluster = zigbee.parse(description)
-	log.debug cluster
-	if (shouldProcessMessage(cluster)) {
-		switch(cluster.clusterId) {
-			case 0x0000:
-			resultMap = getBatteryResult(cluster.data.get(30))
-			break
-//#############################################################
-		}
-	}
-
-	return resultMap
-}
-
-/*
-private Map parseCatchAllMessage(String description) {
+    def i
     Map resultMap = [:]
     def cluster = zigbee.parse(description)
-    if (shouldProcessMessage(cluster)) {
-        log.debug "Parse $cluster"
-    }
+    log.debug cluster
+    if (cluster) {
+        switch(cluster.clusterId)
+        {
+            case 0x0000:
+            def MsgLength = cluster.data.size();
 
+            // Original Xiaomi CatchAll does not have identifiers, first UINT16 is Battery
+            if ((cluster.data.get(0) == 0x02) && (cluster.data.get(1) == 0xFF))
+            {
+                for (i = 0; i < (MsgLength-3); i++)
+                {
+                    if (cluster.data.get(i) == 0x21) // check the data ID and data type
+                    {
+                        // next two bytes are the battery voltage.
+                        resultMap = getBatteryResult((cluster.data.get(i+2)<<8) + cluster.data.get(i+1))
+                        break
+                    }
+                }
+            }
+            else if ((cluster.data.get(0) == 0x01) && (cluster.data.get(1) == 0xFF))
+            {
+                for (i = 0; i < (MsgLength-3); i++)
+                {
+                    if ((cluster.data.get(i) == 0x01) && (cluster.data.get(i+1) == 0x21))  // check the data ID and data type
+                    {
+                        // next two bytes are the battery voltage.
+                        resultMap = getBatteryResult((cluster.data.get(i+3)<<8) + cluster.data.get(i+2))
+                        break
+                    }
+                }
+            }
+            break
+        }
+    }
     return resultMap
 }
-*/
+
+
 private boolean shouldProcessMessage(cluster) {
     // 0x0B is default response indicating message got through
     // 0x07 is bind message
@@ -149,11 +205,8 @@ private Map parseReportAttributeMessage(String description) {
 		map += [(nameAndValue[0].trim()):nameAndValue[1].trim()]
 	}
 	log.debug "Desc Map: $descMap"
- 
 }
  
-
-
 private Map parseIasMessage(String description) {
     List parsedMsg = description.split(' ')
     String msgCode = parsedMsg[2]
@@ -178,6 +231,16 @@ private Map parseIasMessage(String description) {
     return resultMap
 }
 
+private Map parseCustomMessage(String description) {
+    def result
+    if (description?.startsWith('on/off: ')) {
+        if (description == 'on/off: 0')         //smoke clear
+            result = getSmokeResult("clear")
+        else if (description == 'on/off: 1')     //smoke detected
+            result = getSmokeResult("detected")
+        return result
+    }
+}
 
 private Map getSmokeResult(value) {
 	log.debug 'Smoke Status' 
@@ -189,6 +252,7 @@ private Map getSmokeResult(value) {
 		descriptionText: descriptionText
 	]
 }
+
 
 private Map getTestedResult(value) {
 	def now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
@@ -202,53 +266,76 @@ private Map getTestedResult(value) {
 	]
 }
 // DOESNT WORK PROPERLY NEEDS TESTING AND ADJUSTING
-def refresh() {		//read enrolled state and zone type from IAS cluster
-	[
-	    "st rattr 0x${device.deviceNetworkId} ${endpointId} 0x0500 0", "delay 500",
-        "st rattr 0x${device.deviceNetworkId} ${endpointId} 0x0500 1"
-	]
-    log.debug "refreshing"
-}	
-private Map getBatteryResult(rawValue) {
-	//log.debug 'Battery'
-	def linkText = getLinkText(device)
-
-	//log.debug rawValue
-
-	def result = [
-		name: 'battery',
-		value: '--'
-	]
-    
-	def volts = rawValue / 1
-    
-    def maxVolts = 100
-
-	if (volts > maxVolts) {
-				volts = maxVolts
-    }
-
-    result.value = volts
-	result.descriptionText = "${linkText} battery was ${result.value}%"
-
-	return result
+//def refresh() {		//read enrolled state and zone type from IAS cluster
+	//[
+	  //  "st rattr 0x${device.deviceNetworkId} ${endpointId} 0x0500 0", "delay 500",
+      //  "st rattr 0x${device.deviceNetworkId} ${endpointId} 0x0500 1"
+	//]
+  //  log.debug "refreshing"
+//}	
+def resetBatteryRuntime() {
+    def now = formatDate(true)   
+    sendEvent(name: "batteryRuntime", value: now)
 }
 
-def configure() {
+def installed() {
+    state.battery = 0
+    checkIntervalEvent("installed");
+}
 
-	String zigbeeId = swapEndianHex(device.hub.zigbeeId)
-	log.debug "Confuguring Reporting, IAS CIE, and Bindings."
-	def configCmds = [
-		"zcl global write 0x500 0x10 0xf0 {${zigbeeId}}", "delay 200",
-		"send 0x${device.deviceNetworkId} 1 ${endpointId}", "delay 1500",
-        
-        // DOESNT WORK PROPERLY NEEDS TESTING AND ADJUSTING
-        //"raw 0x500 {01 23 00 00 00}", "delay 200",
-        //"send 0x${device.deviceNetworkId} 1 1", "delay 1500",
-        
-	]
-    log.debug "configure: Write IAS CIE"
-    return configCmds // send refresh cmds as part of config
+def updated() {
+    checkIntervalEvent("updated");
+}
+
+
+def reset() {
+    sendEvent(name:"smoke", value:"clear")
+}
+
+def makeSmoke() {
+    def now = formatDate()
+    def nowDate = new Date(now).getTime()
+    sendEvent(name:"smoke", value:"detected")
+    sendEvent(name: "lastSmoke", value: now, displayed: false)
+    sendEvent(name: "lastSmokeDate", value: nowDate, displayed: false)
+}
+
+
+private Map getBatteryResult(rawValue) {
+	def rawVolts = rawValue / 1000
+	def minVolts
+    def maxVolts
+
+    if(voltsmin == null || voltsmin == "")
+    	minVolts = 2.5
+    else
+   	minVolts = voltsmin
+    
+    if(voltsmax == null || voltsmax == "")
+    	maxVolts = 3.0
+    else
+	maxVolts = voltsmax
+    
+    def pct = (rawVolts - minVolts) / (maxVolts - minVolts)
+    def roundedPct = Math.min(100, Math.round(pct * 100))
+
+    def result = [
+        name: 'battery',
+        value: roundedPct,
+        unit: "%",
+        isStateChange:true,
+        descriptionText : "${device.displayName} raw battery is ${rawVolts}v"
+    ]
+
+    log.debug "${device.displayName}: ${result}"
+    return result
+}
+
+def configure(){ 
+
+	log.debug "${device.displayName}: configuring"
+    state.battery = 0
+    checkIntervalEvent("configure");
 }
 
 def enrollResponse() {
@@ -280,4 +367,41 @@ private byte[] reverseArray(byte[] array) {
         i++;
     }
     return array
+}
+
+private checkIntervalEvent(text) {
+    // Device wakes up every 1 hours, this interval allows us to miss one wakeup notification before marking offline
+    log.debug "${device.displayName}: Configured health checkInterval when ${text}()"
+    sendEvent(name: "checkInterval", value: 2 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zigbee", hubHardwareId: device.hub.hardwareID])
+}
+
+def formatDate(batteryReset) {
+    def correctedTimezone = ""
+
+    if (!(location.timeZone)) {
+        correctedTimezone = TimeZone.getTimeZone("GMT")
+        log.error "${device.displayName}: Time Zone not set, so GMT was used. Please set up your location in the SmartThings mobile app."
+        sendEvent(name: "error", value: "", descriptionText: "ERROR: Time Zone not set, so GMT was used. Please set up your location in the SmartThings mobile app.")
+    } 
+    else {
+        correctedTimezone = location.timeZone
+    }
+    if (dateformat == "US" || dateformat == "" || dateformat == null) {
+        if (batteryReset)
+            return new Date().format("MMM dd yyyy", correctedTimezone)
+        else
+            return new Date().format("EEE MMM dd yyyy h:mm:ss a", correctedTimezone)
+    }
+    else if (dateformat == "UK") {
+        if (batteryReset)
+            return new Date().format("dd MMM yyyy", correctedTimezone)
+        else
+            return new Date().format("EEE dd MMM yyyy h:mm:ss a", correctedTimezone)
+        }
+    else {
+        if (batteryReset)
+            return new Date().format("yyyy MMM dd", correctedTimezone)
+        else
+            return new Date().format("EEE yyyy MMM dd HH:mm:ss", correctedTimezone)
+    }
 }
